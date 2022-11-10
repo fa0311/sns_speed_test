@@ -47,7 +47,7 @@ class SpeedTestWidget extends ConsumerWidget {
               children: [
                 for (GaugeType type in GaugeType.values)
                   SizedBox(
-                    width: 200,
+                    width: 180,
                     height: 250,
                     child: Consumer(
                       builder: (context, ref, child) {
@@ -77,7 +77,7 @@ class SpeedTestWidget extends ConsumerWidget {
                                     style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                                   ),
                                   angle: 90,
-                                  positionFactor: 0.5,
+                                  positionFactor: 0.8,
                                 ),
                               ],
                             ),
@@ -94,6 +94,7 @@ class SpeedTestWidget extends ConsumerWidget {
               ),
               child: Column(
                 children: [
+                  const Text("Connected threads"),
                   Consumer(
                     builder: (context, ref, child) {
                       final connection = ref.watch(connectionProvider);
@@ -105,6 +106,7 @@ class SpeedTestWidget extends ConsumerWidget {
                       );
                     },
                   ),
+                  const Text("Traffic (mb)"),
                   Consumer(
                     builder: (context, ref, child) {
                       final contentLength = ref.watch(contentLengthProvider);
@@ -124,7 +126,6 @@ class SpeedTestWidget extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(services.name),
                   Padding(
                     padding: const EdgeInsets.all(10),
                     child: ElevatedButton(
@@ -151,6 +152,7 @@ class SpeedTestWidget extends ConsumerWidget {
                       child: const Text("Start Speed Test"),
                     ),
                   ),
+                  Text(services.name),
                   const ServicesSelectButton(),
                   Consumer(
                     builder: (context, ref, child) {
@@ -158,6 +160,7 @@ class SpeedTestWidget extends ConsumerWidget {
                       return Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          Text("Connection $connection"),
                           Slider(
                             value: connection.toDouble(),
                             min: 1,
@@ -166,7 +169,6 @@ class SpeedTestWidget extends ConsumerWidget {
                               ref.read(connectionProvider.notifier).state = value.toInt();
                             },
                           ),
-                          Text("Connection $connection"),
                         ],
                       );
                     },
