@@ -17,6 +17,8 @@ final receivedConnectionProvider = StateProvider((ref) => 0);
 final receivedProvider = StateProvider((ref) => 0.0);
 final contentLengthProvider = StateProvider((ref) => 50.0);
 
+final isProgressProvider = StateProvider((ref) => false);
+
 enum GaugeType {
   time("ms"),
   speed("mbps");
@@ -30,6 +32,7 @@ class SpeedTestWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final services = ref.watch(servicesProvider);
+    final isProgress = ref.watch(isProgressProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -98,7 +101,6 @@ class SpeedTestWidget extends ConsumerWidget {
                       return SfLinearGauge(
                         minimum: 0.0,
                         maximum: connection.toDouble(),
-                        animationDuration: 50,
                         barPointers: [LinearBarPointer(value: received.toDouble())],
                       );
                     },
@@ -110,7 +112,6 @@ class SpeedTestWidget extends ConsumerWidget {
                       return SfLinearGauge(
                         minimum: 0.0,
                         maximum: contentLength.roundToDouble(),
-                        animationDuration: 50,
                         barPointers: [LinearBarPointer(value: receved.roundToDouble())],
                       );
                     },
@@ -127,26 +128,26 @@ class SpeedTestWidget extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.all(10),
                     child: ElevatedButton(
-                      onPressed: () {
-                        ref.read(responseTimeProvider.notifier).state = 0.0;
-                        ref.read(speedProvider.notifier).state = 0.0;
-                        ref.read(receivedProvider.notifier).state = 0.0;
-                        SpeedTest test = SpeedTest(ref.read(servicesProvider).getUri());
-                        test.download(
-                          ref.read(connectionProvider),
-                          latency: (value, received) {
-                            ref.read(responseTimeProvider.notifier).state = value;
-                            ref.read(receivedConnectionProvider.notifier).state = received;
-                          },
-                          latencyDone: (value) {
-                            ref.read(contentLengthProvider.notifier).state = value / 1024 / 1024;
-                          },
-                          listen: (value, received) {
-                            ref.read(speedProvider.notifier).state = value / 1024 / 1024;
-                            ref.read(receivedProvider.notifier).state = received / 1024 / 1024;
-                          },
-                        );
-                      },
+                      onPressed: isProgress
+                          ? null
+                          : () {
+                              ref.read(isProgressProvider.notifier).state = true;
+                              ref.read(responseTimeProvider.notifier).state = 0.0;
+                              ref.read(speedProvider.notifier).state = 0.0;
+                              ref.read(receivedProvider.notifier).state = 0.0;
+                              SpeedTest test = SpeedTest(ref.read(servicesProvider).getUri());
+                              test.download(ref.read(connectionProvider), latency: (value, received) {
+                                ref.read(responseTimeProvider.notifier).state = value;
+                                ref.read(receivedConnectionProvider.notifier).state = received;
+                              }, latencyDone: (value) {
+                                ref.read(contentLengthProvider.notifier).state = value / 1024 / 1024;
+                              }, listen: (value, received) {
+                                ref.read(speedProvider.notifier).state = value / 1024 / 1024;
+                                ref.read(receivedProvider.notifier).state = received / 1024 / 1024;
+                              }, listenDone: () {
+                                ref.read(isProgressProvider.notifier).state = false;
+                              });
+                            },
                       child: const Text("Start Speed Test"),
                     ),
                   ),

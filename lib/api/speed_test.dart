@@ -15,6 +15,7 @@ class SpeedTest extends SpeedTestData {
     Function(double, int)? latency,
     Function(int)? latencyDone,
     Function(double, int)? listen,
+    Function()? listenDone,
   }) async {
     isProgress = true;
     int receivedLatency = 0;
@@ -52,6 +53,9 @@ class SpeedTest extends SpeedTestData {
           double sec = speedTime.elapsedMilliseconds / 1000;
           if (listen != null) {
             listen(received * 8 / sec, received);
+          }
+          if (listenDone != null) {
+            listenDone();
           }
         }
       });
