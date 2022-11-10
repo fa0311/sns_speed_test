@@ -37,26 +37,17 @@ class SpeedTest extends SpeedTestData {
         received += value.length;
         double sec = speedTime.elapsedMilliseconds / 1000;
         if (listen != null) {
-          listen(received * 8 / sec);
+          listen(received * 8 / 1024 / 1024 / sec);
         }
       }).onDone(() async {
         if (++doneConnection >= connectionSize) {
           speedTime.stop();
           double sec = speedTime.elapsedMilliseconds / 1000;
           if (listen != null) {
-            listen(received * 8 / sec);
+            listen(received * 8 / 1024 / 1024 / sec);
           }
         }
       });
     }
   }
-}
-
-String prefix(double num, {fractionDigits = 2}) {
-  List<String> prefixList = ["", "K", "M", "G", "T", "P", "E", "Z", "Y"];
-  int i;
-  for (i = 0; num > 1024; i++) {
-    num /= 1024;
-  }
-  return num.toStringAsFixed(fractionDigits) + prefixList[i];
 }

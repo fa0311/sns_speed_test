@@ -11,7 +11,7 @@ class MyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return MaterialApp(
+    return const MaterialApp(
       title: 'Speed Test',
       home: SpeedTestWidget(),
     );
