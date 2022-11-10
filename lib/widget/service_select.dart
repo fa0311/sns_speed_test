@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sns_speed_test/dataclass/service.dart';
+import 'package:sns_speed_test/widget/speed_test.dart';
 
 final editNoteProvider = StateProvider<bool>((ref) => false);
 
@@ -23,7 +24,10 @@ class ServicesSelectButton extends ConsumerWidget {
                 for (Services service in Services.values)
                   ListTile(
                     title: Text(service.name),
-                    onTap: () => Navigator.of(context).pop(),
+                    onTap: () {
+                      ref.read(servicesProvider.notifier).state = service;
+                      Navigator.of(context).pop();
+                    },
                   ),
               ],
             );
