@@ -7,8 +7,15 @@ import 'package:sns_speed_test/widget/service_select.dart';
 import 'package:syncfusion_flutter_gauges/gauges.dart';
 
 final servicesProvider = StateProvider((ref) => Services.twitter);
+
 final responseTimeProvider = StateProvider((ref) => 0.0);
 final speedProvider = StateProvider((ref) => 0.0);
+
+final connectionProvider = StateProvider((ref) => 20);
+final receivedConnectionProvider = StateProvider((ref) => 0);
+
+final receivedProvider = StateProvider((ref) => 0.0);
+final contentLengthProvider = StateProvider((ref) => 50.0);
 
 enum GaugeType {
   time("ms"),
@@ -31,13 +38,14 @@ class SpeedTestWidget extends ConsumerWidget {
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
+          children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 for (GaugeType type in GaugeType.values)
                   SizedBox(
                     width: 200,
+                    height: 250,
                     child: Consumer(
                       builder: (context, ref, child) {
                         final value = () {
@@ -77,28 +85,94 @@ class SpeedTestWidget extends ConsumerWidget {
                   ),
               ],
             ),
-            Text(services.name),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: ElevatedButton(
-                onPressed: () {
-                  ref.read(responseTimeProvider.notifier).state = 0.0;
-                  ref.read(speedProvider.notifier).state = 0.0;
-                  SpeedTest(Uri.parse("https://video.twimg.com/ext_tw_video/1589654926166265856/pu/vid/480x600/qX9Ha_9U-Sl8wggn.mp4")).download(
-                    10,
-                    ping: (value) {
-                      ref.read(responseTimeProvider.notifier).state = value;
+            ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 350,
+              ),
+              child: Column(
+                children: [
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final connection = ref.watch(connectionProvider);
+                      final received = ref.watch(receivedConnectionProvider);
+                      return SfLinearGauge(
+                        minimum: 0.0,
+                        maximum: connection.toDouble(),
+                        animationDuration: 50,
+                        barPointers: [LinearBarPointer(value: received.toDouble())],
+                      );
                     },
-                    listen: (value) {
-                      print(value);
-                      ref.read(speedProvider.notifier).state = value;
+                  ),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final contentLength = ref.watch(contentLengthProvider);
+                      final receved = ref.watch(receivedProvider);
+                      return SfLinearGauge(
+                        minimum: 0.0,
+                        maximum: contentLength.roundToDouble(),
+                        animationDuration: 50,
+                        barPointers: [LinearBarPointer(value: receved.roundToDouble())],
+                      );
                     },
-                  );
-                },
-                child: const Text("Start Speed Test"),
+                  ),
+                ],
               ),
             ),
-            const ServicesSelectButton(),
+            SizedBox(
+              width: 300,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(services.name),
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        ref.read(responseTimeProvider.notifier).state = 0.0;
+                        ref.read(speedProvider.notifier).state = 0.0;
+                        ref.read(receivedProvider.notifier).state = 0.0;
+                        SpeedTest test = SpeedTest(ref.read(servicesProvider).getUri());
+                        test.download(
+                          ref.read(connectionProvider),
+                          latency: (value, received) {
+                            ref.read(responseTimeProvider.notifier).state = value;
+                            ref.read(receivedConnectionProvider.notifier).state = received;
+                          },
+                          latencyDone: (value) {
+                            ref.read(contentLengthProvider.notifier).state = value / 1024 / 1024;
+                          },
+                          listen: (value, received) {
+                            ref.read(speedProvider.notifier).state = value / 1024 / 1024;
+                            ref.read(receivedProvider.notifier).state = received / 1024 / 1024;
+                          },
+                        );
+                      },
+                      child: const Text("Start Speed Test"),
+                    ),
+                  ),
+                  const ServicesSelectButton(),
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final connection = ref.watch(connectionProvider);
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Slider(
+                            value: connection.toDouble(),
+                            min: 1,
+                            max: 100,
+                            onChanged: (value) {
+                              ref.read(connectionProvider.notifier).state = value.toInt();
+                            },
+                          ),
+                          Text("Connection $connection"),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

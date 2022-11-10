@@ -7,29 +7,35 @@ abstract class SpeedTestData {
 }
 
 class SpeedTest extends SpeedTestData {
-  int received = 0;
   bool isProgress = false;
   SpeedTest(super.url);
 
   download(
     int connectionSize, {
-    Function(double)? ping,
-    Function(double)? listen,
+    Function(double, int)? latency,
+    Function(int)? latencyDone,
+    Function(double, int)? listen,
   }) async {
     isProgress = true;
-    int doneConnection = 0;
+    int receivedLatency = 0;
     List<http.StreamedResponse> tasks = [];
 
-    Stopwatch pingTime = Stopwatch()..start();
+    Stopwatch latencyTime = Stopwatch()..start();
     for (int id = 0; id < connectionSize; id++) {
       tasks.add(await http.Client().send(http.Request('GET', url)));
-      if (ping != null) {
-        ping(pingTime.elapsedMilliseconds / (id + 1));
+      if (latency != null) {
+        latency(latencyTime.elapsedMilliseconds / (id + 1), ++receivedLatency);
       }
     }
-    pingTime.stop();
+    latencyTime.stop();
 
-    // int contentLength = tasks.fold(0, (value, element) => value + (element.contentLength ?? 0));
+    int contentLength = tasks.fold(0, (value, element) => value + (element.contentLength ?? 0));
+    if (latencyDone != null) {
+      latencyDone(contentLength);
+    }
+
+    int doneConnection = 0;
+    int received = 0;
 
     Stopwatch speedTime = Stopwatch()..start();
     for (http.StreamedResponse task in tasks) {
@@ -37,14 +43,15 @@ class SpeedTest extends SpeedTestData {
         received += value.length;
         double sec = speedTime.elapsedMilliseconds / 1000;
         if (listen != null) {
-          listen(received * 8 / 1024 / 1024 / sec);
+          listen(received * 8 / sec, received);
         }
       }).onDone(() async {
         if (++doneConnection >= connectionSize) {
           speedTime.stop();
+          isProgress = false;
           double sec = speedTime.elapsedMilliseconds / 1000;
           if (listen != null) {
-            listen(received * 8 / 1024 / 1024 / sec);
+            listen(received * 8 / sec, received);
           }
         }
       });
