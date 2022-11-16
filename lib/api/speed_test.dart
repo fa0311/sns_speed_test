@@ -6,58 +6,67 @@ abstract class SpeedTestData {
   SpeedTestData(this.url);
 }
 
+enum SpeedTestState {
+  none,
+  start,
+  progress,
+  end;
+}
+
 class SpeedTest extends SpeedTestData {
-  bool isProgress = false;
+  SpeedTestState state = SpeedTestState.none;
   SpeedTest(super.url);
 
   download(
     int connectionSize, {
-    Function(double, int)? latency,
-    Function(int)? latencyDone,
+    Function(double, int, int)? latency,
+    Function(int)? startListen,
     Function(double, int)? listen,
-    Function()? listenDone,
+    Function(int)? endListen,
+    Function(SpeedTestState)? changeStateListen,
   }) async {
-    isProgress = true;
-    int receivedLatency = 0;
-    List<http.StreamedResponse> tasks = [];
+    if (changeStateListen != null) changeStateListen(state = SpeedTestState.start);
 
-    Stopwatch latencyTime = Stopwatch()..start();
-    for (int id = 0; id < connectionSize; id++) {
-      tasks.add(await http.Client().send(http.Request('GET', url)));
-      if (latency != null) {
-        latency(latencyTime.elapsedMilliseconds / (id + 1), ++receivedLatency);
-      }
-    }
-    latencyTime.stop();
-
-    int contentLength = tasks.fold(0, (value, element) => value + (element.contentLength ?? 0));
-    if (latencyDone != null) {
-      latencyDone(contentLength);
-    }
-
-    int doneConnection = 0;
     int received = 0;
+    int contentLength = 0;
+    int progressLatency = 0;
 
     Stopwatch speedTime = Stopwatch()..start();
-    for (http.StreamedResponse task in tasks) {
-      task.stream.listen((value) {
-        received += value.length;
-        double sec = speedTime.elapsedMilliseconds / 1000;
-        if (listen != null) {
-          listen(received * 8 / sec, received);
+    Stopwatch latencyTime = Stopwatch()..start();
+    for (int id = 0; id < connectionSize; id++) {
+      http.Client().send(http.Request('GET', url)).then((task) {
+        contentLength += task.contentLength ?? 0;
+        if (latency != null) {
+          latency(latencyTime.elapsedMilliseconds.toDouble(), ++progressLatency, contentLength);
         }
-      }).onDone(() async {
-        if (++doneConnection >= connectionSize) {
-          speedTime.stop();
-          isProgress = false;
-          double sec = speedTime.elapsedMilliseconds / 1000;
-          if (listen != null) {
-            listen(received * 8 / sec, received);
-          }
-          if (listenDone != null) {
-            listenDone();
-          }
+        if (connectionSize == progressLatency) {
+          if (changeStateListen != null) changeStateListen(state = SpeedTestState.progress);
         }
+        task.stream.listen((value) {
+          received += value.length;
+
+          switch (state) {
+            case SpeedTestState.none:
+              return;
+            case SpeedTestState.start:
+              if (startListen != null) startListen(received);
+              return;
+            case SpeedTestState.progress:
+              double sec = speedTime.elapsedMilliseconds / 1000;
+              if (listen != null) listen(received * 8 / sec, received);
+              return;
+            case SpeedTestState.end:
+              if (endListen != null) endListen(received);
+              return;
+          }
+        }).onDone(() async {
+          if (connectionSize == progressLatency) {
+            if (changeStateListen != null) changeStateListen(state = SpeedTestState.end);
+          }
+          if (--progressLatency == 0) {
+            if (changeStateListen != null) changeStateListen(state = SpeedTestState.none);
+          }
+        });
       });
     }
   }
