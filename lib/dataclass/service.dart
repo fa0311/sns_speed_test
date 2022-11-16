@@ -19,7 +19,7 @@ enum Services {
       case Services.github:
         return Uri.https(
           "github.com",
-          "/fa0311/sns_speed_test/releases/download/v0.0.1/app-release.apk",
+          "/fa0311/sns_speed_test/releases/download/v1.0.0/app-release.apk",
         );
       case Services.line:
         return Uri.https(
