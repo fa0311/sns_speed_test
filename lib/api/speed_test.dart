@@ -6,12 +6,7 @@ abstract class SpeedTestData {
   SpeedTestData(this.url);
 }
 
-enum SpeedTestState {
-  none,
-  start,
-  progress,
-  end;
-}
+enum SpeedTestState { none, start, progress, end }
 
 class SpeedTest extends SpeedTestData {
   SpeedTestState state = SpeedTestState.none;
@@ -19,7 +14,8 @@ class SpeedTest extends SpeedTestData {
 
   download(
     int connectionSize, {
-    Function(double, int, int)? latency,
+    Function(double, int, int)? startConnection,
+    Function(int)? endConnection,
     Function(int)? startListen,
     Function(double, int)? listen,
     Function(int)? endListen,
@@ -29,17 +25,19 @@ class SpeedTest extends SpeedTestData {
 
     int received = 0;
     int contentLength = 0;
-    int progressLatency = 0;
+    int connection = 0;
+    int latencySumTime = 0;
 
     Stopwatch speedTime = Stopwatch()..start();
     Stopwatch latencyTime = Stopwatch()..start();
     for (int id = 0; id < connectionSize; id++) {
       http.Client().send(http.Request('GET', url)).then((task) {
         contentLength += task.contentLength ?? 0;
-        if (latency != null) {
-          latency(latencyTime.elapsedMilliseconds.toDouble(), ++progressLatency, contentLength);
+        latencySumTime += latencyTime.elapsedMilliseconds;
+        if (startConnection != null) {
+          startConnection(latencySumTime / ++connection, connection, contentLength);
         }
-        if (connectionSize == progressLatency) {
+        if (connectionSize == connection) {
           if (changeStateListen != null) changeStateListen(state = SpeedTestState.progress);
         }
         task.stream.listen((value) {
@@ -60,12 +58,13 @@ class SpeedTest extends SpeedTestData {
               return;
           }
         }).onDone(() async {
-          if (connectionSize == progressLatency) {
+          if (connectionSize == connection) {
             if (changeStateListen != null) changeStateListen(state = SpeedTestState.end);
           }
-          if (--progressLatency == 0) {
+          if (--connection == 0) {
             if (changeStateListen != null) changeStateListen(state = SpeedTestState.none);
           }
+          if (endConnection != null) endConnection(connection);
         });
       });
     }

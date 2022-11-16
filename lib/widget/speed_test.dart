@@ -11,13 +11,16 @@ final servicesProvider = StateProvider((ref) => Services.twitter);
 final responseTimeProvider = StateProvider((ref) => 0.0);
 final speedProvider = StateProvider((ref) => 0.0);
 
-final connectionProvider = StateProvider((ref) => 20);
-final receivedConnectionProvider = StateProvider((ref) => 0);
+final connectionSizeProvider = StateProvider((ref) => 20);
+final connectionProvider = StateProvider((ref) => 0);
 
+final startReceivedProvider = StateProvider((ref) => 0.0);
 final receivedProvider = StateProvider((ref) => 0.0);
+final endReceivedProvider = StateProvider((ref) => 0.0);
+
 final contentLengthProvider = StateProvider((ref) => 50.0);
 
-final isProgressProvider = StateProvider((ref) => false);
+final stateProvider = StateProvider((ref) => SpeedTestState.none);
 
 enum GaugeType {
   time("ms"),
@@ -32,7 +35,7 @@ class SpeedTestWidget extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final services = ref.watch(servicesProvider);
-    final isProgress = ref.watch(isProgressProvider);
+    final state = ref.watch(stateProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -97,8 +100,8 @@ class SpeedTestWidget extends ConsumerWidget {
                   const Text("Connected threads"),
                   Consumer(
                     builder: (context, ref, child) {
-                      final connection = ref.watch(connectionProvider);
-                      final received = ref.watch(receivedConnectionProvider);
+                      final connection = ref.watch(connectionSizeProvider);
+                      final received = ref.watch(connectionProvider);
                       return SfLinearGauge(
                         minimum: 0.0,
                         maximum: connection.toDouble(),
@@ -110,11 +113,17 @@ class SpeedTestWidget extends ConsumerWidget {
                   Consumer(
                     builder: (context, ref, child) {
                       final contentLength = ref.watch(contentLengthProvider);
+                      final startReceved = ref.watch(startReceivedProvider);
                       final receved = ref.watch(receivedProvider);
+                      final endReceved = ref.watch(endReceivedProvider);
                       return SfLinearGauge(
                         minimum: 0.0,
                         maximum: contentLength.roundToDouble(),
-                        barPointers: [LinearBarPointer(value: receved.roundToDouble())],
+                        barPointers: [
+                          LinearBarPointer(color: const Color.fromARGB(255, 39, 39, 39), value: endReceved.roundToDouble()),
+                          LinearBarPointer(value: receved.roundToDouble()),
+                          LinearBarPointer(color: const Color.fromARGB(255, 39, 39, 39), value: startReceved.roundToDouble()),
+                        ],
                       );
                     },
                   ),
@@ -129,26 +138,40 @@ class SpeedTestWidget extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.all(10),
                     child: ElevatedButton(
-                      onPressed: isProgress
-                          ? null
-                          : () {
-                              ref.read(isProgressProvider.notifier).state = true;
+                      onPressed: state == SpeedTestState.none
+                          ? () {
                               ref.read(responseTimeProvider.notifier).state = 0.0;
                               ref.read(speedProvider.notifier).state = 0.0;
+                              ref.read(startReceivedProvider.notifier).state = 0.0;
                               ref.read(receivedProvider.notifier).state = 0.0;
+                              ref.read(endReceivedProvider.notifier).state = 0.0;
                               SpeedTest test = SpeedTest(ref.read(servicesProvider).getUri());
-                              test.download(ref.read(connectionProvider), latency: (value, received) {
-                                ref.read(responseTimeProvider.notifier).state = value;
-                                ref.read(receivedConnectionProvider.notifier).state = received;
-                              }, latencyDone: (value) {
-                                ref.read(contentLengthProvider.notifier).state = value / 1024 / 1024;
-                              }, listen: (value, received) {
-                                ref.read(speedProvider.notifier).state = value / 1024 / 1024;
-                                ref.read(receivedProvider.notifier).state = received / 1024 / 1024;
-                              }, listenDone: () {
-                                ref.read(isProgressProvider.notifier).state = false;
-                              });
-                            },
+                              test.download(
+                                ref.read(connectionSizeProvider),
+                                startConnection: (value, received, contentLength) {
+                                  ref.read(responseTimeProvider.notifier).state = value;
+                                  ref.read(connectionProvider.notifier).state = received;
+                                  ref.read(contentLengthProvider.notifier).state = contentLength / 1024 / 1024;
+                                },
+                                endConnection: (received) {
+                                  ref.read(connectionProvider.notifier).state = received;
+                                },
+                                startListen: (received) {
+                                  ref.read(startReceivedProvider.notifier).state = received / 1024 / 1024;
+                                },
+                                listen: (value, received) {
+                                  ref.read(speedProvider.notifier).state = value / 1024 / 1024;
+                                  ref.read(receivedProvider.notifier).state = received / 1024 / 1024;
+                                },
+                                endListen: (received) {
+                                  ref.read(endReceivedProvider.notifier).state = received / 1024 / 1024;
+                                },
+                                changeStateListen: (state) {
+                                  ref.read(stateProvider.notifier).state = state;
+                                },
+                              );
+                            }
+                          : null,
                       child: const Text("Start Speed Test"),
                     ),
                   ),
@@ -156,7 +179,7 @@ class SpeedTestWidget extends ConsumerWidget {
                   const ServicesSelectButton(),
                   Consumer(
                     builder: (context, ref, child) {
-                      final connection = ref.watch(connectionProvider);
+                      final connection = ref.watch(connectionSizeProvider);
                       return Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -165,9 +188,11 @@ class SpeedTestWidget extends ConsumerWidget {
                             value: connection.toDouble(),
                             min: 1,
                             max: 100,
-                            onChanged: (value) {
-                              ref.read(connectionProvider.notifier).state = value.toInt();
-                            },
+                            onChanged: state == SpeedTestState.none
+                                ? (value) {
+                                    ref.read(connectionSizeProvider.notifier).state = value.toInt();
+                                  }
+                                : null,
                           ),
                         ],
                       );

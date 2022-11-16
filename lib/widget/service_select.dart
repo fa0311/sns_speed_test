@@ -1,6 +1,7 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sns_speed_test/api/speed_test.dart';
 import 'package:sns_speed_test/dataclass/service.dart';
 import 'package:sns_speed_test/widget/speed_test.dart';
 
@@ -11,29 +12,32 @@ class ServicesSelectButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(stateProvider);
     return ElevatedButton(
-      onPressed: () {
-        showModalBottomSheet(
-          context: context,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
-          ),
-          builder: (_) {
-            return Column(
-              children: <Widget>[
-                for (Services service in Services.values)
-                  ListTile(
-                    title: Text(service.name),
-                    onTap: () {
-                      ref.read(servicesProvider.notifier).state = service;
-                      Navigator.of(context).pop();
-                    },
-                  ),
-              ],
-            );
-          },
-        );
-      },
+      onPressed: state == SpeedTestState.none
+          ? () {
+              showModalBottomSheet(
+                context: context,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+                ),
+                builder: (_) {
+                  return Column(
+                    children: <Widget>[
+                      for (Services service in Services.values)
+                        ListTile(
+                          title: Text(service.name),
+                          onTap: () {
+                            ref.read(servicesProvider.notifier).state = service;
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                    ],
+                  );
+                },
+              );
+            }
+          : null,
       child: const Text('Services Select Button'),
     );
   }
